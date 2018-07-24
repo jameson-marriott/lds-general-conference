@@ -1,2 +1,2 @@
 # lds-general-conference
-Exploring the text from LDS General Conferences
+Explore the text from LDS General Conferences
