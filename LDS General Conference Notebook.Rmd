@@ -69,7 +69,7 @@ conference_talks <- tibble(Title = conference_talk_titles,
 
 #write_csv(conference_talks, "Conference Talks.csv")
 
-#conference_talks <- read_csv("Conference Talks.csv")
+conference_talks <- read_csv("Conference Talks.csv")
 ```
 
 
@@ -78,7 +78,7 @@ conference_talks <- tibble(Title = conference_talk_titles,
 conf_text <- tibble(Link = conference_talks$Link, Text = "")
 # Replace the table with a previously saved file if it available
 try(
-  conf_text <- read_csv("2018-07-01 Conference Talk Text.csv") %>%
+  conf_text <- read_csv("Conference Talk Text.csv") %>%
     rename(Link = link, Text = text)
 )
 
@@ -96,7 +96,7 @@ for (i in seq_along(conf_text$Link)) {
 }
 
 # Write the latest version of the scraped text
- write_csv(conf_text %>% rename(Link = link, Text = text), paste(Sys.Date(), "Conference Talk Text.csv"))
+# write_csv(conf_text %>% rename(Link = link, Text = text), paste(Sys.Date(), "Conference Talk Text.csv"))
 
 ```
 
@@ -184,5 +184,33 @@ president_frequency %>%
   xlab(NULL) +
   coord_flip() 
   
+```
+
+How have the work length and the number of words per talk changed over the years? 
+
+```{r}
+tidy_conference_all <- conference_talks %>%
+  mutate(Text = str_replace_all(Text, pattern = "[:digit:]|[:punct:]", replacement = " ")) %>%
+  unnest_tokens(word, Text) %>%
+  mutate(word_length = str_length(word)) %>%
+  group_by(Date, Title) %>%
+  #group_by(Title) %>%
+  summarise(word_count = n(), average_word_length = mean(word_length)) %>%
+  ungroup() %>%
+  drop_na() %>%
+  group_by(Date) %>%
+  summarise(`Average Words/Talk` = mean(word_count),
+            `Average Word Length` = mean(average_word_length)) %>%
+  ungroup() %>%
+  mutate(Date = as.numeric(str_replace(Date, "-", "."))) %>%
+  gather(key = Type, value = Value, -Date)
+
+ggplot(tidy_conference_all, aes(Date, Value)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(Type ~ ., scales = "free") +
+  theme_bw() +
+  theme(legend.position = "none", axis.title.y = element_blank()) +
+  ggtitle("LDS General Conference")
 ```
 
