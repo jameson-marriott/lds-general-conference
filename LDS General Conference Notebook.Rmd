@@ -129,7 +129,7 @@ conference_titles <- conference_talks %>%
   group_by(Title) %>%
   summarise(`Number of Talks` = n()) %>%
   arrange(desc(`Number of Talks`)) #%>%
-  #top_n(12, `Number of Talks`)
+  #top_n(10, `Number of Talks`)
 conference_titles
 ```
 
@@ -195,14 +195,18 @@ tidy_conference_all <- conference_talks %>%
   mutate(word_length = str_length(word)) %>%
   group_by(Date, Title) %>%
   #group_by(Title) %>%
-  summarise(word_count = n(), average_word_length = mean(word_length)) %>%
+  summarise(word_count = n(), word_length = sum(word_length)) %>%
   ungroup() %>%
   drop_na() %>%
   group_by(Date) %>%
   summarise(`Average Words/Talk` = mean(word_count),
-            `Average Word Length` = mean(average_word_length)) %>%
+            #`Median Words/Talk` = median(word_count),
+            word_count = sum(word_count),
+            sum_word_length = sum(word_length)) %>%
   ungroup() %>%
-  mutate(Date = as.numeric(str_replace(Date, "-", "."))) %>%
+  mutate(Date = as.numeric(str_replace(Date, "-", ".")),
+         `Average Word Length` = sum_word_length/word_count) %>%
+  select(-sum_word_length, -word_count) %>%
   gather(key = Type, value = Value, -Date)
 
 ggplot(tidy_conference_all, aes(Date, Value)) +
@@ -212,5 +216,7 @@ ggplot(tidy_conference_all, aes(Date, Value)) +
   theme_bw() +
   theme(legend.position = "none", axis.title.y = element_blank()) +
   ggtitle("LDS General Conference")
+
+ggsave("General Conference Talk Word Count and Length.jpg", width = 7, height = 5, units = "in", dpi = 300)
 ```
 
