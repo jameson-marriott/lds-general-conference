@@ -191,7 +191,9 @@ How have the work length and the number of words per talk changed over the years
 ```{r}
 tidy_conference_all <- conference_talks %>%
   mutate(Text = str_replace_all(Text, pattern = "[:digit:]|[:punct:]", replacement = " ")) %>%
-  unnest_tokens(word, Text) %>%
+  unnest_tokens(word, Text)
+
+tidy_conference_summary <- tidy_conference_all %>%
   mutate(word_length = str_length(word)) %>%
   group_by(Date, Title) %>%
   #group_by(Title) %>%
@@ -209,14 +211,43 @@ tidy_conference_all <- conference_talks %>%
   select(-sum_word_length, -word_count) %>%
   gather(key = Type, value = Value, -Date)
 
-ggplot(tidy_conference_all, aes(Date, Value)) +
+ggplot(tidy_conference_summary, aes(Date, Value)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
   facet_grid(Type ~ ., scales = "free") +
   theme_bw() +
-  theme(legend.position = "none", axis.title.y = element_blank()) +
-  ggtitle("LDS General Conference")
+  theme(axis.title.y = element_blank()) +
+  ggtitle("LDS General Conference Averages")
 
 ggsave("General Conference Talk Word Count and Length.jpg", width = 7, height = 5, units = "in", dpi = 300)
+
+tidy_conference_distr <- tidy_conference_all %>%
+  mutate(word_length = str_length(word)) %>%
+  group_by(Date, Title) %>%
+  summarise(`Word Count` = n(), `Avg. Word Length` = mean(word_length)) %>%
+  drop_na() %>%
+  ungroup %>%
+  gather(key = Key, value = Value, -Date, -Title) %>%
+  mutate(Date = as.numeric(str_replace(Date, "-", ".")))
+
+tidy_conference_distr %>%
+  ggplot(aes(Date, Value)) +
+  geom_jitter(width = .25, pch = 21) +
+  facet_grid(Key ~ ., scales = "free") +
+  theme_bw() +
+  theme(axis.title.y = element_blank()) +
+  ggtitle("LDS General Conference")
+
+ggsave("General Conference Talk Word Count and Length Jitter.jpg", width = 7, height = 5, units = "in", dpi = 300)
+```
+
+What are the longest General Conference Talks?
+```{r}
+long_talks <- tidy_conference_distr %>%
+  top_n(10, Value) %>%
+  select(-Key) %>%
+  rename(`Word Count` = Value) %>%
+  dplyr::arrange(desc(`Word Count`))
+long_talks
 ```
 
