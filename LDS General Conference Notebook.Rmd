@@ -137,7 +137,7 @@ What are the most common words in conference talk titles, once the reports and s
 
 ```{r}
 title_words <- conference_talks %>%
-  filter(!str_detect(.$Title, pattern = "Church Officers|Report")) %>% # This does remove a few more talks than ideal, but it's pretty close
+  filter(!str_detect(.$Title, pattern = "Church Officers|Statistical Report|Church Audit")) %>% # This does remove a few more talks than ideal, but it's pretty close
   unnest_tokens(word, Title) %>%
   anti_join(stop_words) %>%
   group_by(word) %>%
@@ -186,10 +186,11 @@ president_frequency %>%
   
 ```
 
-How have the work length and the number of words per talk changed over the years? 
+How have the word length and the number of words per talk changed over the years? 
 
 ```{r}
 tidy_conference_all <- conference_talks %>%
+  filter(!str_detect(.$Title, pattern = "Church Officers|Statistical Report|Church Audit|Church Finance")) %>% # This does remove a few more talks than ideal, but it's pretty close
   mutate(Text = str_replace_all(Text, pattern = "[:digit:]|[:punct:]", replacement = " ")) %>%
   unnest_tokens(word, Text)
 
@@ -219,7 +220,7 @@ ggplot(tidy_conference_summary, aes(Date, Value)) +
   theme(axis.title.y = element_blank()) +
   ggtitle("LDS General Conference Averages")
 
-ggsave("General Conference Talk Word Count and Length.jpg", width = 7, height = 5, units = "in", dpi = 300)
+#ggsave("General Conference Talk Word Count and Length.jpg", width = 7, height = 5, units = "in", dpi = 300)
 
 tidy_conference_distr <- tidy_conference_all %>%
   mutate(word_length = str_length(word)) %>%
@@ -238,7 +239,7 @@ tidy_conference_distr %>%
   theme(axis.title.y = element_blank()) +
   ggtitle("LDS General Conference")
 
-ggsave("General Conference Talk Word Count and Length Jitter.jpg", width = 7, height = 5, units = "in", dpi = 300)
+#ggsave("General Conference Talk Word Count and Length Jitter.jpg", width = 7, height = 5, units = "in", dpi = 300)
 ```
 
 What are the longest General Conference Talks?
@@ -249,5 +250,17 @@ long_talks <- tidy_conference_distr %>%
   rename(`Word Count` = Value) %>%
   dplyr::arrange(desc(`Word Count`))
 long_talks
+```
+
+What talks have the longest average word length? 
+
+```{r}
+long_word_talks <- tidy_conference_distr %>%
+  filter(Key == "Avg. Word Length") %>%
+  top_n(10, Value) %>%
+  select(-Key) %>%
+  rename(`Avg. Word Length` = Value) %>%
+  dplyr::arrange(desc(`Avg. Word Length`))
+long_word_talks
 ```
 
