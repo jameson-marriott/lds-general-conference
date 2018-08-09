@@ -2,7 +2,7 @@
 title: "LDS Text Analysis"
 author: "Jameson Marriott"
 output:
-  html_document:
+  html_notebook:
     code_folding: hide
 ---
 
