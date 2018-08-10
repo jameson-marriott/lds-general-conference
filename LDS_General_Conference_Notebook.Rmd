@@ -17,7 +17,7 @@ library(furrr)
 library(svMisc)
 ```
 
-```{r download}
+```{r download, eval=FALSE}
 conference_year_links <- read_html("https://www.lds.org/general-conference/conferences?lang=eng") %>%
   html_nodes(".year-line__link") %>%
   html_attr("href") %>%
@@ -30,7 +30,7 @@ conference_year_pages <- conference_year_links %>%
 #head(conference_year_pages)
 ```
 
-```{r prepare}
+```{r prepare, eval=FALSE}
 # Get the links to the individual talks
 conference_talk_links <- conference_year_pages %>%
   future_map(html_nodes, css = ".lumen-tile__link") %>%
@@ -73,7 +73,7 @@ conference_talks <- read_csv("Conference Talks.csv")
 ```
 
 
-```{r talk_text_2}
+```{r talk_text_2, eval=FALSE}
 # Initialize tibble
 conf_text <- tibble(Link = conference_talks$Link, Text = "")
 # Replace the table with a previously saved file if it available
@@ -100,7 +100,7 @@ for (i in seq_along(conf_text$Link)) {
 
 ```
 
-```{r load_downloaded_data}
+```{r load_downloaded_data, message=FALSE, warning=FALSE, results='hide'}
 conference_talks <- read_csv("Conference Talks.csv") %>%
   left_join(read_csv("Conference Talk Text.csv") %>% rename(Link = link, Text = text))
 
@@ -150,7 +150,7 @@ conference_talks %>%
 
 How do the word choices of the three most recent presidents of the LDS church compare? 
 
-```{r}
+```{r, eval=FALSE}
 tidy_conference <- conference_talks %>%
   mutate(Text = str_replace_all(Text, pattern = "[:digit:]|[:punct:]", replacement = " ")) %>%
   unnest_tokens(word, Text) %>%
