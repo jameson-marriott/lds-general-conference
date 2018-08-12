@@ -271,3 +271,57 @@ tidy_conference_all %>%
   select(word, `Word Length`, Author, Title, Date)
 ```
 
+How has the sentiment of General Conference talks changed over time? 
+
+```{r}
+tidy_conference_sentiment <- tidy_conference_all %>%
+  inner_join(get_sentiments(lexicon = "afinn"), by = "word") %>%
+  group_by(Date, Title, Author) %>%
+  summarise(`Avg. Sentiment` = mean(score)) %>%
+  ungroup() %>%
+  mutate(Date = as.numeric(str_replace(Date, "-", ".")))
+
+tidy_conference_sentiment %>%
+  ggplot(aes(Date, `Avg. Sentiment`)) +
+  geom_jitter(width = .25, pch = 21) +
+  theme_bw() +
+  ggtitle("LDS General Conference Sentiment")
+  
+```
+
+Which talks are the most positive? 
+
+```{r}
+tidy_conference_sentiment %>%
+  top_n(10, `Avg. Sentiment`) %>%
+  arrange(desc(`Avg. Sentiment`))
+```
+
+Which talks are the most negative? 
+
+```{r}
+tidy_conference_sentiment %>%
+  top_n(-10, `Avg. Sentiment`) %>%
+  arrange(`Avg. Sentiment`)
+```
+
+How many unique words are used in General Conference? 
+
+```{r}
+tidy_conference_all %>%
+  select(word) %>%
+  unique() %>%
+  nrow()
+```
+
+What are the most comon words once the "Stop words" have been removed?
+
+```{r}
+tidy_conference_all %>%
+  anti_join(stop_words, by = "word") %>%
+  group_by(word) %>%
+  summarise(n = n()) %>%
+  top_n(10, n) %>%
+  arrange(desc(n))
+```
+
