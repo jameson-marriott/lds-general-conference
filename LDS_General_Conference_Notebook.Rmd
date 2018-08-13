@@ -284,6 +284,8 @@ tidy_conference_sentiment <- tidy_conference_all %>%
 tidy_conference_sentiment %>%
   ggplot(aes(Date, `Avg. Sentiment`)) +
   geom_jitter(width = .25, pch = 21) +
+  #geom_smooth() +
+  #geom_hline(yintercept = c(.9, 1.1)) +
   theme_bw() +
   ggtitle("LDS General Conference Sentiment")
   
@@ -322,6 +324,16 @@ tidy_conference_all %>%
   group_by(word) %>%
   summarise(n = n()) %>%
   top_n(10, n) %>%
-  arrange(desc(n))
+  arrange(desc(n)) %>%
+  mutate(word = reorder(str_to_title(word), n)) %>%
+  select(Word = word, Uses = n) %>%
+  ggplot(aes(x = Word, y = Uses)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  theme_bw() +
+  ggtitle("Most used words in General Conference")
+
+#ggsave("General Conference Most Used Words.jpg", width = 7, height = 5, units = "in", dpi = 300)
 ```
 
