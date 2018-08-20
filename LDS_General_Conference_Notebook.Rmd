@@ -15,6 +15,7 @@ library(tidytext)
 library(rvest)
 library(furrr)
 library(svMisc)
+library(scales)
 ```
 
 ```{r download, eval=FALSE}
@@ -375,6 +376,30 @@ gc_presidents_tl_df
 How to the favorit words of the three most recent LDS Presidents compare? 
 
 ```{r}
+tidy_conference_all %>%
+  filter(Author %in% c("Gordon B. Hinckley", "Thomas S. Monson", "Russell M. Nelson")) %>%
+  anti_join(stop_words, by = "word") %>%
+  mutate(word = str_to_title(word)) %>%
+  count(Author, word) %>%
+  group_by(Author) %>%
+  mutate(proportion = n / sum(n)) %>% 
+  select(-n) %>% 
+  spread(Author, proportion) %>% 
+  gather(Author, proportion, -`Russell M. Nelson`, -word) %>%
+  drop_na() %>%
+  ggplot(aes(x = proportion, y = `Russell M. Nelson`, color = abs(`Russell M. Nelson` - proportion))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.3, height = 0.3) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75") +
+  facet_wrap(~Author, ncol = 2, strip.position = "bottom") +
+  labs(y = "Russell M. Nelson", x = NULL) +
+  ggtitle("Prophet Conference Talk Word Frequency") +
+  theme_minimal() +
+  theme(legend.position="none")
 
+#ggsave("General Conference Talk Word Frequency by Prophet.jpg", width = 7, height = 5, units = "in", dpi = 300)
 ```
 
