@@ -20,6 +20,20 @@ library(igraph)
 library(ggraph)
 ```
 
+Get General Conference data from Gospel Library app content. 
+```{r read_data}
+library(DBI)
+library(RSQLite)
+
+con <- dbConnect(SQLite(), "C:/Users/james/AppData/Local/Packages/TheChurchofJesusChristofL.GospelLibrary_ae8bh92e13w8t/LocalState/Platform-V3/Library/catalog/Catalog.sqlite")
+
+dbListTables(con)
+
+table <- dbReadTable(con, "item")
+colnames(table)
+```
+
+
 ```{r download, eval=FALSE}
 conference_year_links <- read_html("https://www.lds.org/general-conference/conferences?lang=eng") %>%
   html_nodes(".year-line__link") %>%

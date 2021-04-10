@@ -1,0 +1,165 @@
+---
+title: "General Conference Podcast Feed"
+author: "Jameson Marriott"
+date: "10/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(DBI)
+library(RSQLite)
+library(httr)
+```
+
+Working way to get podcast urls. This way turned out to be too complicated because I didn't need all of the features of httr::GET, I only needed to get the page text which I could do with readr::read_file. 
+
+```{r httr_method, eval=FALSE}
+con <- dbConnect(SQLite(), "C:/Users/james/AppData/Local/Packages/TheChurchofJesusChristofL.GospelLibrary_ae8bh92e13w8t/LocalState/Platform-V4/Library/144397950/13/package.sqlite")
+
+urls <- con %>%
+  dbReadTable("subitem") %>%
+  filter(type == "default") %>%
+  select(uri) %>%
+  mutate(uri = paste0("https://www.churchofjesuschrist.org/study", uri, "?lang=eng")) %>%
+  unlist() %>%
+  as_tibble() %>%
+  rename(page_urls = value) %>%
+  mutate(page_content = map(page_urls, GET)) %>%
+  hoist(page_content, "content") %>%
+  mutate(page_text = map(content, rawToChar),
+         mp3_urls = paste0("https://media2.ldscdn.org/assets/general-conference/", str_extract_all(page_text, "october\\-2020\\-.+mp3"))) %>%
+  select(mp3_urls)
+
+dbDisconnect(con)
+
+write_csv(urls, "conference_mp3_urls.csv")
+
+```
+
+This way of getting the mp3 urls is faster and simpler. 
+
+```{r readr_method}
+con <- dbConnect(SQLite(), "C:/Users/james/AppData/Local/Packages/TheChurchofJesusChristofL.GospelLibrary_ae8bh92e13w8t/LocalState/Platform-V4/Library/145942660/19/package.sqlite")
+
+urls <- con %>%
+  dbReadTable("subitem") %>%
+  filter(type == "default") %>%
+  select(uri) %>%
+  mutate(uri = paste0("https://www.churchofjesuschrist.org/study", uri, "?lang=eng")) %>%
+  unlist() %>%
+  as_tibble() %>%
+  rename(page_urls = value) %>%
+  #top_n(2, page_urls) %>% # get a smaller list for testing
+  mutate(page_text = map(page_urls, read_file)) %>%
+  mutate(mp3_snip = map(page_text, str_extract_all, "april\\-2021\\-.+mp3")) %>%
+  mutate(mp3_snip = unlist(mp3_snip)) %>%
+  mutate(mp3_urls = paste0("https://media2.ldscdn.org/assets/general-conference/", mp3_snip))
+
+dbDisconnect(con)
+
+read_csv("conference_mp3_urls.csv") %>%
+  full_join(urls %>% select(page_urls, mp3_urls)) %>%
+  distinct() %>%
+  write_csv("conference_mp3_urls.csv")
+
+urls %>%
+ select(page_urls, mp3_urls) %>%
+ write_csv("2021_april_conference_mp3_urls.csv")
+
+```
+
+Get titles and authors.
+
+```{r rss}
+# get title names
+# some of the urls have titles instead of authors, so I either need a different source or I need to filter out those titles (sustaining and the video from women's session)
+#test <- urls %>%
+#  mutate(author = map_chr(mp3_snip, str_remove_all, "october-2020-general-conference/2020|-32k-eng.mp3") %>%
+#           str_replace_all("-|\\d", " ") %>%
+#           str_squish() %>%
+#           str_to_title()
+#         ) %>%
+#  #mutate(author = map_chr(author, str_replace_all, "-|\\d", " ")) %>%
+#  #mutate(author = map_chr(author, str_to_title)) %>%
+#  select(author)
+#test
+
+# get authors and titles
+podcast_info <- urls %>%
+  mutate(title = map_chr(page_text, str_extract, "(?<=title data-react-helmet=true>).+(?=</title>)"),
+         author = map_chr(page_text, str_extract, "(?<=class=author-name).+(?=</p>)") %>%
+           str_extract("(?<=By ).+(?=</p><p class=author-role)")) %>%
+  select(title, author, link = mp3_urls)
+podcast_info
+```
+
+Create RSS feed. 
+
+```{r}
+header <- 
+"<channel>
+<title>April 2021 General Conference</title>
+<link>https://www.churchofjesuschrist.org/study/general-conference/2020/10?lang=eng</link>
+<language>en</language>
+<description>April 2021 General Conference of the Church of Jesus Christ of Latter-day Saints</description>
+<image>
+<url>https://assets.ldscdn.org/4e/30/4e3096b7f7ea1775a1e19e8ee6a256dde679b385/2020_october_general_conference_ghana.jpeg</url>
+<title>April-2021-general-conference</title>
+<link>https://www.churchofjesuschrist.org/study/general-conference/2021/04?lang=eng</link>
+<width>500</width>
+<height>650</height>
+</image>
+<lastBuildDate>04/09/2021 13:50:00</lastBuildDate>"
+
+podcast_items = podcast_info %>%
+  mutate(row_num = row_number() %>%
+           as.character() %>%
+           str_pad(2, side = "left", pad = "0"),
+         pubDate = paste0("<pubDate>Mon, 03 Apr 2021 07:00:", row_num, " GMT</pubDate>"), # works when there are less than 60 talks. 
+         item_start = "<item>",
+         item_end = "</item>",
+         title = paste0("<title>", title, "</title>"),
+         author = paste0("<author>", author, "</author>"),
+         guid = paste0("<guid>", link, "</guid>"),
+         enclosure = paste0("<enclosure url=\"", link, "\" type=\"audio/mpeg\" length=\"0\"/>"),
+         link = paste0("<link>", link, "</link>")) %>%
+  select(item_start, 
+         title,
+         author,
+         link,
+         pubDate,
+         guid,
+         enclosure,
+         item_end,
+         row_num) %>%
+  gather(key = "key", value = "value", -row_num) %>%
+  arrange(row_num) %>%
+  select(value) %>%
+  unlist() %>%
+  as.character() %>%
+  stringr::str_c(collapse = "\n")
+
+footer <- "</channel>"
+
+rss_feed <- str_c(c(header, podcast_items, footer), collapse = "\n")
+
+readr::write_lines(rss_feed, "2021-Apr-General-Conference.xml")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
